@@ -1,0 +1,3424 @@
+{
+  "name": "Smart Expense Tracker - Updated Production",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "category": "={{ $json.category }}",
+            "description": "={{ $json.description }}",
+            "amount": "={{ $json.amount }}",
+            "currency": "={{ $json.currency }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1008,
+        2352
+      ],
+      "id": "dc33cdff-3169-4508-b803-7e3d4853b0b4",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "MjAR6fQC79uVQC0a",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=✅ Saved! {{ $json.category }} — {{ $json.amount }} {{ $json.currency }} on {{ $json.date }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1232,
+        2352
+      ],
+      "id": "ff41c00f-9f19-47fd-8f8c-1cc44dc41d7c",
+      "name": "Saved message !",
+      "webhookId": "75b35d1b-56fd-472e-a651-389e32ed392d",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "⚠️ *Couldn't understand the expense.*\n\nPlease send it like one of these examples:\n\n• `Lunch 450 BDT`\n• `Uber 250 taka today`\n• `Netflix $15 yesterday`\n• `Medicine 560 BDT 2026-04-10`\n\n━━━━━━━━━━━━━━━━━━━━\n✅ *Required Information*\n━━━━━━━━━━━━━━━━━━━━\n\n💰 Amount → `450`\n💵 Currency → `BDT`, `USD`, `EUR`\n📂 Category → Food, Transport, Shopping, Bills, Entertainment, Health, Travel, Education, Groceries, Other\n📝 Description → Lunch, Uber ride, Coffee, etc.\n📅 Date → Optional — today is used automatically\n\nSend `help` to see all commands.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        2544
+      ],
+      "id": "b2c06066-5730-430f-aa82-749425a60479",
+      "name": "Error message !",
+      "webhookId": "59896463-ed86-4855-8e3e-3adf37afd901",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst raw = item.content ?? item.message?.content ?? item.response ?? item.text ?? '';\n\nlet cleaned = String(raw)\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/\\s*```$/i, '')\n  .replace(/^json\\s*/i, '')\n  .trim();\n\n// If the model returned extra text, keep the first JSON object only.\nconst match = cleaned.match(/\\{[\\s\\S]*\\}/);\nif (match) cleaned = match[0];\n\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (error) {\n  return [{ json: {\n    amount: null,\n    currency: null,\n    category: null,\n    description: null,\n    date: null,\n    parse_error: true,\n    raw_response: raw\n  }}];\n}\n\nfunction normalizeCurrency(value) {\n  if (!value) return null;\n  const c = String(value).trim().toUpperCase();\n  if (['TAKA', 'TK', '৳'].includes(c)) return 'BDT';\n  if (['$', 'DOLLAR', 'DOLLARS'].includes(c)) return 'USD';\n  if (['€', 'EURO', 'EUROS'].includes(c)) return 'EUR';\n  if (['£', 'POUND', 'POUNDS'].includes(c)) return 'GBP';\n  return c;\n}\n\nconst amount = parsed.amount === null || parsed.amount === undefined ? null : Number(parsed.amount);\n\nreturn [{ json: {\n  amount: Number.isFinite(amount) ? amount : null,\n  currency: normalizeCurrency(parsed.currency),\n  category: parsed.category || null,\n  description: parsed.description || null,\n  date: parsed.date || null\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        2448
+      ],
+      "id": "7f21be77-a4b1-4e27-a154-2eff4bda84ba",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        336
+      ],
+      "id": "aafffa68-2034-4781-980e-3e71075b7f67",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        336
+      ],
+      "id": "6a260cae-5f81-4cd5-af51-66c3c3d32891",
+      "name": "List of last 10 Expenses",
+      "webhookId": "acf167e4-0ae0-44c1-bafe-b63488d0a567",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\n\nif (rows.length === 0) {\n  return [{ json: { text: \"📭 No expenses found!\" } }];\n}\n\nconst start = Math.max(0, rows.length - 10);\nconst last10 = rows.slice(start);\n\nlet message = \"📊 *Last 10 Expenses:*\\n\\n\";\n\nlast10.forEach((row, index) => {\n  const r = row.json;\n  const sheetRowNumber = start + index + 1; // data row number in the sheet, excluding header\n  message += `#${sheetRowNumber}. ${r.date} — *${r.category}*\\n`;\n  message += `   ${r.description} — ${r.amount} ${r.currency}\\n\\n`;\n});\n\nconst total = last10.reduce((sum, row) => sum + Number(row.json.amount || 0), 0);\nconst currency = last10[0]?.json.currency || 'BDT';\nmessage += `💰 *Total: ${total.toFixed(0)} ${currency}*\\n\\n`;\nmessage += `To delete, send: delete <number> e.g. delete ${start + 1}`;\n\nreturn [{ json: { text: message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        336
+      ],
+      "id": "5b3838b6-ca99-4e86-bc51-2a9f1b764bbd",
+      "name": "Code for List (10 Expenses)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $('Telegram Trigger').item.json.message.text.trim();\nconst parts = text.split(' ');\nconst rowNumber = parseInt(parts[1]);\n\nif (isNaN(rowNumber) || rowNumber < 1) {\n  return [{ json: { \n    error: true, \n    text: \"❌ Invalid format! Use: delete 3\" \n  }}];\n}\n\nreturn [{ json: { \n  error: false,\n  rowIndex: rowNumber + 1,\n  rowNumber: rowNumber\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        624
+      ],
+      "id": "61731137-cf83-4a1e-9f79-295ef03673a5",
+      "name": "Code for Delete"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "startIndex": "={{ $('Code for Delete').item.json.rowIndex }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1232,
+        528
+      ],
+      "id": "f3b9df61-80cc-45a4-9dd4-024ffc0c0adb",
+      "name": "Delete rows or columns from sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b9d579c2-558b-466c-a20c-9d2fc6848334",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        432,
+        624
+      ],
+      "id": "1432f77e-02b0-44fc-a5d9-c18207397fbd",
+      "name": "If for Delete"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ad10aa03-23fb-45c3-8ef8-816409fdd608",
+              "leftValue": "={{ $json.amount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "602a8158-b4e2-42e0-a163-54392d947749",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        720,
+        2448
+      ],
+      "id": "e73e86a5-50fb-4f5f-83e9-d47bb6c4f4e2",
+      "name": "If for Expense Entry",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        528
+      ],
+      "id": "5fc9991a-07fd-4de6-9a42-f0fda37caab7",
+      "name": "Get row",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=🗑️ *Expense Deleted!*\n\n📅 Date: {{ $('Code for delete 2').item.json.date }}\n🏷️ Category: {{ $('Code for delete 2').item.json.category }}\n📝 Description: {{ $('Code for delete 2').item.json.description }}\n💰 Amount: {{ $('Code for delete 2').item.json.amount }} {{ $('Code for delete 2').item.json.currency }}\n\n✅ Expense #{{ $('Code for Delete').item.json.rowNumber }} removed successfully!",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1456,
+        528
+      ],
+      "id": "4e3de199-66ff-4bcb-bf89-af3c7343f0d1",
+      "name": "Delete message !",
+      "webhookId": "47300d15-cc43-40aa-8246-04d656c6da90",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\nconst rowNumber = $('Code for Delete').item.json.rowNumber;\nconst row = rows[rowNumber - 1]?.json;\n\nif (!row) {\n  return [{ json: {\n    date: 'N/A',\n    category: 'N/A',\n    description: 'N/A',\n    amount: 'N/A',\n    currency: '',\n    rowNumber: rowNumber\n  }}];\n}\n\nreturn [{ json: {\n  date: row.date,\n  category: row.category,\n  description: row.description,\n  amount: row.amount,\n  currency: row.currency,\n  rowNumber: rowNumber\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        528
+      ],
+      "id": "f8f68bd5-f44f-4264-b607-0b36f4e92a2a",
+      "name": "Code for delete 2"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a4b5819d-4188-4127-b7e8-e35c47138b76"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "list"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "02fed9cb-81c5-4e36-82bc-c0b80b14892a",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Delete Expense"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ed79ca18-b6b4-4120-b7fa-1ca68afd3ad4",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "setbudget",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Set Budget"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "1e623779-4174-4184-ab2e-c29199bef809",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "budget",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Budget"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "24d17f7c-3aa2-4082-9ee0-f630e779f75e",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "daily report",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Daily Report"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "60abe392-bafe-4e4a-a9b0-237493b3cbc5",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "weekly report",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Weekly Report"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d8662c20-f557-4330-b288-785192908844",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "monthly report",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Monthly Report"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "99894200-9438-4b68-a29e-e1d6501f7a19",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "help",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Available commands"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "507291cf-c3d5-464b-89cc-0228b675b750",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "category",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Expense By Category"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ad398860-a56b-4b63-b066-05647e7cf550",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "setgoal",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Set Goal"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "46186ce6-8a63-4a87-9866-7ff3ea44c6df",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "savegoal",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Save Goal"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "29e3a58f-ffe6-4078-8239-62cc91b616b0",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "goal",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Goal"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3a619677-9389-404f-90cd-82ff0b213ea1",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "how",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  },
+                  {
+                    "id": "nlq-what",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "what",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  },
+                  {
+                    "id": "nlq-am",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "am",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  },
+                  {
+                    "id": "nlq-did",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "did",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  },
+                  {
+                    "id": "nlq-show",
+                    "leftValue": "={{ $json.message.text.toLowerCase().trim() }}",
+                    "rightValue": "show",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "Natural Language Queries"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -144,
+        1584
+      ],
+      "id": "9d15e763-804b-41cd-9f1c-bfdc074a0240",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $('Telegram Trigger').item.json.message.text.trim();\nconst parts = text.split(' ');\n\nif (parts.length < 2 || isNaN(parts[1])) {\n  return [{ json: {\n    error: true,\n    text: \"❌ Invalid format! Use: setbudget 5000 BDT\"\n  }}];\n}\n\nconst amount = parseFloat(parts[1]);\nconst currency = parts[2] ? parts[2].toUpperCase() : 'BDT';\n\nconst now = new Date();\nconst year = now.getFullYear();\nconst month = String(now.getMonth() + 1).padStart(2, '0');\nconst date = `${year}-${month}-01`;\n\nreturn [{ json: {\n  error: false,\n  date: date,\n  amount: amount,\n  currency: currency\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        912
+      ],
+      "id": "f8d9d6e7-1f41-40b8-8561-f7e3c33a4342",
+      "name": "Code for Set Budget"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Budget",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "amount": "={{ $json.amount }}",
+            "currency": "={{ $json.currency }}"
+          },
+          "matchingColumns": [
+            "date"
+          ],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        912
+      ],
+      "id": "4bd2254a-f5f9-4084-898e-293672dac332",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=✅ Budget set!\n\n📅 Month: {{ $json.date }}\n💰 Amount: {{ $json.amount }} {{ $json.currency }}\n\nSend 'budget' anytime to check your spending!",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        912
+      ],
+      "id": "7c48a490-69a7-418d-b615-17bf5e8870f4",
+      "name": "Budget Confirmation",
+      "webhookId": "990cd16a-4954-4165-aad5-72e7fefcb5d3",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        1104
+      ],
+      "id": "736a732c-4e19-4570-abbc-ba6833acc252",
+      "name": "Get expenses",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Budget",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        1104
+      ],
+      "id": "49bcaa40-d942-42bd-9a38-a2fc64c4f178",
+      "name": "Get Budget",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const expenseRows = $('Get expenses').all();\nconst budgetRows = $('Get Budget').all();\n\nconst now = new Date();\nconst currentMonth = now.getFullYear() + '-' + \n  String(now.getMonth() + 1).padStart(2, '0');\n\nconst budget = budgetRows\n  .filter(r => r.json.date && r.json.date.startsWith(currentMonth))\n  .pop();\n\nif (!budget) {\n  return [{ json: { \n    text: \"❌ No budget set for this month!\\n\\nUse: setbudget 5000 BDT\" \n  }}];\n}\n\nconst budgetAmount = parseFloat(budget.json.amount);\nconst currency = budget.json.currency;\n\nconst monthExpenses = expenseRows.filter(r => \n  r.json.date && r.json.date.startsWith(currentMonth)\n);\n\nconst spent = monthExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nconst remaining = budgetAmount - spent;\nconst percentage = Math.min(100, Math.max(0, \n  Math.round((spent / budgetAmount) * 100)\n));\nconst filled = Math.min(20, Math.max(0, Math.round(percentage / 5)));\nconst bar = '█'.repeat(filled) + '░'.repeat(20 - filled);\n\nconst categoryTotals = {};\nmonthExpenses.forEach(r => {\n  const cat = r.json.category || 'Other';\n  categoryTotals[cat] = (categoryTotals[cat] || 0) + \n    parseFloat(r.json.amount || 0);\n});\n\nlet catBreakdown = '';\nObject.entries(categoryTotals)\n  .sort((a, b) => b[1] - a[1])\n  .forEach(([cat, amt]) => {\n    catBreakdown += `  • ${cat}: ${amt.toFixed(0)} ${currency}\\n`;\n  });\n\nconst actualPercentage = Math.round((spent / budgetAmount) * 100);\nconst status = actualPercentage >= 100 ? '🔴 Over budget!' : \n               actualPercentage >= 80 ? '🟡 Almost at limit!' : \n               '🟢 On track';\n\nconst text = `📊 *Monthly Budget Report*\n📅 ${currentMonth}\n\n💰 Budget:    ${budgetAmount.toLocaleString()} ${currency}\n💸 Spent:     ${spent.toFixed(0)} ${currency}\n✅ Remaining: ${remaining.toFixed(0)} ${currency}\n📈 Used:      ${actualPercentage}%\n\n\\`${bar}\\` ${actualPercentage}%\n\n${status}\n\n📂 *By Category:*\n${catBreakdown}`;\n\nreturn [{ json: { text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        1104
+      ],
+      "id": "11e3b9a9-ac39-4609-a158-521fa1274643",
+      "name": "Code for Get Budget"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1456,
+        2352
+      ],
+      "id": "2455d2fc-a438-4acb-9dbc-b6183fc11d26",
+      "name": "Get expenses for alert",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Budget",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1680,
+        2352
+      ],
+      "id": "f36a31be-a7a4-42e5-805a-bd08a56f1c4a",
+      "name": "Get budget for alert",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const expenseRows = $('Get expenses for alert').all();\nconst budgetRows = $('Get budget for alert').all();\n\nconst now = new Date();\nconst currentMonth = now.getFullYear() + '-' + \n  String(now.getMonth() + 1).padStart(2, '0');\n\nconst budget = budgetRows\n  .filter(r => r.json.date && r.json.date.startsWith(currentMonth))\n  .pop();\n\nif (!budget) {\n  return [{ json: { alert: false } }];\n}\n\nconst budgetAmount = parseFloat(budget.json.amount);\nconst currency = budget.json.currency;\n\nconst monthExpenses = expenseRows.filter(r => \n  r.json.date && r.json.date.startsWith(currentMonth)\n);\n\nconst spent = monthExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nconst percentage = Math.round((spent / budgetAmount) * 100);\nconst remaining = budgetAmount - spent;\n\nif (percentage >= 100) {\n  return [{ json: {\n    alert: true,\n    text: `🔴 *OVER BUDGET!*\\n\\n💸 You've spent ${spent.toFixed(0)} ${currency} out of ${budgetAmount} ${currency}\\n📈 Used: ${percentage}%\\n⚠️ You are ${Math.abs(remaining).toFixed(0)} ${currency} over your limit!\\n\\nConsider reviewing your expenses.`\n  }}];\n} else if (percentage >= 80) {\n  return [{ json: {\n    alert: true,\n    text: `🟡 *BUDGET WARNING!*\\n\\n💸 Spent: ${spent.toFixed(0)} ${currency}\\n✅ Remaining: ${remaining.toFixed(0)} ${currency}\\n📈 Used: ${percentage}%\\n\\nYou've used 80% of your monthly budget!`\n  }}];\n} else if (percentage >= 50) {\n  return [{ json: {\n    alert: true,\n    text: `📊 *Budget Update*\\n\\n💸 Spent: ${spent.toFixed(0)} ${currency}\\n✅ Remaining: ${remaining.toFixed(0)} ${currency}\\n📈 Used: ${percentage}%\\n\\nYou've used half your monthly budget.`\n  }}];\n} else {\n  return [{ json: { alert: false } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        2352
+      ],
+      "id": "6c762f9d-ed02-46a8-90d5-8345e956bde8",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e4ab3954-83c8-42ec-b003-b24310b832fb",
+              "leftValue": "={{ $json.alert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2128,
+        2352
+      ],
+      "id": "a5ada9ad-9aa1-4113-951f-0c27a668dfb4",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2352,
+        2352
+      ],
+      "id": "7400a333-a5ef-4360-bd18-9d94ea5db2e7",
+      "name": "Alerts! message",
+      "webhookId": "5ac220f1-536c-408a-a0c0-157f3c65e236",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        1104
+      ],
+      "id": "80218960-7dd5-490e-820d-dfdfd84728d5",
+      "name": "Budget message",
+      "webhookId": "990cd16a-4954-4165-aad5-72e7fefcb5d3",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        720
+      ],
+      "id": "df81da78-cd0a-4307-a7e5-7f4591366288",
+      "name": "Delete error message !",
+      "webhookId": "47300d15-cc43-40aa-8246-04d656c6da90",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "llama3.1:8b",
+          "mode": "list",
+          "cachedResultName": "llama3.1:8b"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an intelligent financial assistant.\n\nAnalyze the raw Telegram message and extract structured expense data.\nReturn ONLY valid JSON. No markdown. No explanation.\n\nRequired JSON shape:\n{\"amount\": number|null, \"currency\": string|null, \"category\": string|null, \"description\": string|null, \"date\": string|null}\n\nFields:\n- amount: monetary value as a number\n- currency: ISO code. Normalize taka/tk/৳ to BDT, $ to USD, € to EUR, £ to GBP. If missing, infer BDT.\n- category: one of Food, Transport, Shopping, Bills, Entertainment, Health, Travel, Education, Groceries, Other\n- description: short readable summary\n- date: YYYY-MM-DD\n\nRules:\n1. Extract only one expense per message. If multiple are present, choose the main one.\n2. If amount is missing or ambiguous, use null.\n3. If category is unclear, use Other.\n4. Today's date is {{ new Date().toISOString().split('T')[0] }}.\n5. If no date is mentioned, use today's date.\n6. Never invent random dates.\n7. If the message is not an expense/purchase/payment, return:\n{\"amount\": null, \"currency\": null, \"category\": null, \"description\": null, \"date\": null}\n\nTelegram message:\n{{ $('Telegram Trigger').item.json.message.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        80,
+        2448
+      ],
+      "id": "e400c9aa-0b81-4d25-a1ee-0b0ead8aa75a",
+      "name": "Message a model for Expense",
+      "credentials": {
+        "ollamaApi": {
+          "id": "YpBji9sJVIaoaxX9",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -368,
+        1776
+      ],
+      "id": "5a2458e8-8163-480c-a0d5-d9ed64e5cd53",
+      "name": "Telegram Trigger",
+      "webhookId": "583a71d4-6463-4351-9b07-35c33b29f2a4",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        1488
+      ],
+      "id": "219bb80c-48a1-4ff1-9cc4-ed3ea6c260d6",
+      "name": "Get expenses1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Budget",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        1488
+      ],
+      "id": "6c7ab3e6-cd5f-4a43-9411-6da65ccd4b8b",
+      "name": "Get Budget1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        1680
+      ],
+      "id": "7c954e4e-408f-434a-af34-104e556bd197",
+      "name": "Get expenses2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Budget",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        1680
+      ],
+      "id": "9105c0eb-73c2-495f-b509-6565c2b1c17a",
+      "name": "Get Budget2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const expenseRows = $('Get expenses1').all();\nconst budgetRows = $('Get Budget1').all();\n\nconst now = new Date();\nconst currentMonth = now.getFullYear() + '-' + \n  String(now.getMonth() + 1).padStart(2, '0');\n\nconst oneWeekAgo = new Date(now);\noneWeekAgo.setDate(now.getDate() - 7);\n\nconst weekExpenses = expenseRows.filter(r => {\n  if (!r.json.date) return false;\n  const expDate = new Date(r.json.date);\n  return expDate >= oneWeekAgo && expDate <= now;\n});\n\nconst budget = budgetRows\n  .filter(r => r.json.date && r.json.date.startsWith(currentMonth))\n  .pop();\n\nconst weekTotal = weekExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nconst currency = budget ? budget.json.currency : 'BDT';\nconst budgetAmount = budget ? parseFloat(budget.json.amount) : 0;\n\nconst monthExpenses = expenseRows.filter(r => \n  r.json.date && r.json.date.startsWith(currentMonth)\n);\nconst monthTotal = monthExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\nconst remaining = budgetAmount - monthTotal;\nconst percentage = budgetAmount > 0 ? \n  Math.round((monthTotal / budgetAmount) * 100) : 0;\n\nconst categoryTotals = {};\nweekExpenses.forEach(r => {\n  const cat = r.json.category || 'Other';\n  categoryTotals[cat] = (categoryTotals[cat] || 0) + \n    parseFloat(r.json.amount || 0);\n});\n\nlet catRows = '';\nObject.entries(categoryTotals)\n  .sort((a, b) => b[1] - a[1])\n  .forEach(([cat, amt]) => {\n    const pct = weekTotal > 0 ? Math.round((amt / weekTotal) * 100) : 0;\n    catRows += `\n    <tr>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee;\">${cat}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; text-align: right;\">${amt.toFixed(0)} ${currency}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; text-align: right;\">${pct}%</td>\n    </tr>`;\n  });\n\nlet expenseRows2 = '';\nweekExpenses\n  .sort((a, b) => new Date(b.json.date) - new Date(a.json.date))\n  .forEach(r => {\n    expenseRows2 += `\n    <tr>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee;\">${r.json.date}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee;\">${r.json.description}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee;\">${r.json.category}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; text-align: right;\">${r.json.amount} ${currency}</td>\n    </tr>`;\n  });\n\nconst fromDate = oneWeekAgo.toISOString().split('T')[0];\nconst toDate = now.toISOString().split('T')[0];\nconst subject = `Weekly Expense Report — ${fromDate} to ${toDate}`;\n\nconst body = `\n<html><body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n\n<h2 style=\"color: #1D9E75;\">📊 Weekly Expense Report</h2>\n<p style=\"color: #666;\">${fromDate} to ${toDate}</p>\n\n<div style=\"display: flex; gap: 10px; margin: 15px 0;\">\n  <div style=\"flex: 1; background: #E1F5EE; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #1D9E75;\">${weekTotal.toFixed(0)}</div>\n    <div style=\"color: #666; font-size: 12px;\">Total Spent (${currency})</div>\n  </div>\n  <div style=\"flex: 1; background: #E6F1FB; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #185FA5;\">${weekExpenses.length}</div>\n    <div style=\"color: #666; font-size: 12px;\">Transactions</div>\n  </div>\n  <div style=\"flex: 1; background: #FAEEDA; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #BA7517;\">${weekExpenses.length > 0 ? (weekTotal / weekExpenses.length).toFixed(0) : 0}</div>\n    <div style=\"color: #666; font-size: 12px;\">Avg per Transaction</div>\n  </div>\n</div>\n\n${budgetAmount > 0 ? `\n<div style=\"background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Monthly Budget Status</h3>\n  <p><strong>Budget:</strong> ${budgetAmount.toLocaleString()} ${currency}</p>\n  <p><strong>Spent this month:</strong> ${monthTotal.toFixed(0)} ${currency}</p>\n  <p><strong>Remaining:</strong> ${remaining.toFixed(0)} ${currency}</p>\n  <div style=\"background: #ddd; height: 12px; border-radius: 6px; margin-top: 8px;\">\n    <div style=\"background: ${percentage >= 100 ? '#E24B4A' : percentage >= 80 ? '#EF9F27' : '#1D9E75'}; width: ${Math.min(100, percentage)}%; height: 12px; border-radius: 6px;\"></div>\n  </div>\n  <p style=\"text-align: right; color: #666; font-size: 12px;\">${percentage}% used</p>\n</div>` : ''}\n\n<div style=\"background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Spending by Category</h3>\n  <table style=\"width: 100%; border-collapse: collapse;\">\n    <tr style=\"background: #f5f5f5;\">\n      <th style=\"padding: 8px; text-align: left;\">Category</th>\n      <th style=\"padding: 8px; text-align: right;\">Amount</th>\n      <th style=\"padding: 8px; text-align: right;\">%</th>\n    </tr>\n    ${catRows || '<tr><td colspan=\"3\" style=\"padding: 8px; text-align: center;\">No expenses this week</td></tr>'}\n  </table>\n</div>\n\n<div style=\"background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">All Transactions</h3>\n  <table style=\"width: 100%; border-collapse: collapse;\">\n    <tr style=\"background: #f5f5f5;\">\n      <th style=\"padding: 8px; text-align: left;\">Date</th>\n      <th style=\"padding: 8px; text-align: left;\">Description</th>\n      <th style=\"padding: 8px; text-align: left;\">Category</th>\n      <th style=\"padding: 8px; text-align: right;\">Amount</th>\n    </tr>\n    ${expenseRows2 || '<tr><td colspan=\"4\" style=\"padding: 8px; text-align: center;\">No expenses this week</td></tr>'}\n  </table>\n</div>\n\n<p style=\"color: #999; font-size: 12px; text-align: center;\">Sent automatically by your Smart Expense Tracker</p>\n</body></html>`;\n\nlet weekCatText = '';\nObject.entries(categoryTotals)\n  .sort((a, b) => b[1] - a[1])\n  .slice(0, 5)\n  .forEach(([cat, amt]) => {\n    const pct = weekTotal > 0 ? Math.round((amt / weekTotal) * 100) : 0;\n    weekCatText += `  • ${cat}: ${amt.toFixed(0)} ${currency} (${pct}%)\\n`;\n  });\n\nconst telegramText = `📊 *Weekly Expense Report*\n📅 ${fromDate} → ${toDate}\n\n💸 Total spent: ${weekTotal.toFixed(0)} ${currency}\n🧾 Transactions: ${weekExpenses.length}\n📊 Avg per day: ${(weekTotal / 7).toFixed(0)} ${currency}\n\n📂 *Top Categories:*\n${weekCatText || '  No expenses this week!'}\n📈 *Monthly Budget Status:*\n💰 Budget: ${budgetAmount > 0 ? budgetAmount.toLocaleString() : 'Not set'} ${currency}\n💸 Month spent: ${monthTotal.toFixed(0)} ${currency}\n✅ Remaining: ${budgetAmount > 0 ? remaining.toFixed(0) : 'N/A'} ${currency}\n📊 Used: ${percentage}%`;\n\nreturn [{ json: { subject, body, telegramText } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        1488
+      ],
+      "id": "63841c7e-cf8e-4ffd-9519-01c4476884b2",
+      "name": "Code node for weekly report"
+    },
+    {
+      "parameters": {
+        "jsCode": "const expenseRows = $('Get expenses2').all();\nconst budgetRows = $('Get Budget2').all();\n\nconst now = new Date();\nconst targetMonth = now.getFullYear() + '-' + \n  String(now.getMonth() + 1).padStart(2, '0');\n\nconst monthExpenses = expenseRows.filter(r => \n  r.json.date && r.json.date.startsWith(targetMonth)\n);\n\nconst budget = budgetRows\n  .filter(r => r.json.date && r.json.date.startsWith(targetMonth))\n  .pop();\n\nconst monthTotal = monthExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nconst currency = budget ? budget.json.currency : 'BDT';\nconst budgetAmount = budget ? parseFloat(budget.json.amount) : 0;\nconst remaining = budgetAmount - monthTotal;\nconst percentage = budgetAmount > 0 ? \n  Math.round((monthTotal / budgetAmount) * 100) : 0;\n\nconst categoryTotals = {};\nmonthExpenses.forEach(r => {\n  const cat = r.json.category || 'Other';\n  categoryTotals[cat] = (categoryTotals[cat] || 0) + \n    parseFloat(r.json.amount || 0);\n});\n\nlet catRows = '';\nObject.entries(categoryTotals)\n  .sort((a, b) => b[1] - a[1])\n  .forEach(([cat, amt]) => {\n    const pct = monthTotal > 0 ? Math.round((amt / monthTotal) * 100) : 0;\n    const barWidth = Math.round(pct * 1.5);\n    catRows += `\n    <tr>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; width: 120px;\">${cat}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee;\">\n        <div style=\"background: #1D9E75; height: 8px; width: ${barWidth}px; border-radius: 4px;\"></div>\n      </td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; text-align: right; width: 100px;\">${amt.toFixed(0)} ${currency}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; text-align: right; width: 50px;\">${pct}%</td>\n    </tr>`;\n  });\n\nconst topExpense = monthExpenses.sort((a, b) => \n  parseFloat(b.json.amount) - parseFloat(a.json.amount))[0];\n\nconst subject = `Monthly Expense Report — ${targetMonth}`;\n\nconst body = `\n<html><body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n\n<h2 style=\"color: #1D9E75;\">📊 Monthly Expense Report</h2>\n<p style=\"color: #666;\">${targetMonth}</p>\n\n<div style=\"display: flex; gap: 10px; margin: 15px 0;\">\n  <div style=\"flex: 1; background: #E1F5EE; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #1D9E75;\">${monthTotal.toFixed(0)}</div>\n    <div style=\"color: #666; font-size: 12px;\">Total Spent (${currency})</div>\n  </div>\n  <div style=\"flex: 1; background: #E6F1FB; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #185FA5;\">${monthExpenses.length}</div>\n    <div style=\"color: #666; font-size: 12px;\">Transactions</div>\n  </div>\n  <div style=\"flex: 1; background: #FAEEDA; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #BA7517;\">${monthExpenses.length > 0 ? (monthTotal / monthExpenses.length).toFixed(0) : 0}</div>\n    <div style=\"color: #666; font-size: 12px;\">Avg per Transaction</div>\n  </div>\n</div>\n\n${topExpense ? `\n<div style=\"background: #FCEBEB; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 5px; color: #A32D2D;\">💸 Biggest Expense</h3>\n  <p style=\"margin: 0;\"><strong>${topExpense.json.description}</strong> — ${topExpense.json.amount} ${currency} (${topExpense.json.category})</p>\n</div>` : ''}\n\n${budgetAmount > 0 ? `\n<div style=\"background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Budget Performance</h3>\n  <p><strong>Budget:</strong> ${budgetAmount.toLocaleString()} ${currency}</p>\n  <p><strong>Spent:</strong> ${monthTotal.toFixed(0)} ${currency}</p>\n  <p><strong>${remaining >= 0 ? 'Saved' : 'Overspent'}:</strong> \n    <span style=\"color: ${remaining >= 0 ? '#1D9E75' : '#E24B4A'}\">\n      ${Math.abs(remaining).toFixed(0)} ${currency}\n    </span>\n  </p>\n  <div style=\"background: #ddd; height: 12px; border-radius: 6px; margin-top: 8px;\">\n    <div style=\"background: ${percentage >= 100 ? '#E24B4A' : percentage >= 80 ? '#EF9F27' : '#1D9E75'}; width: ${Math.min(100, percentage)}%; height: 12px; border-radius: 6px;\"></div>\n  </div>\n  <p style=\"text-align: right; color: #666; font-size: 12px;\">${percentage}% of budget used</p>\n</div>` : ''}\n\n<div style=\"background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Spending by Category</h3>\n  <table style=\"width: 100%; border-collapse: collapse;\">\n    <tr style=\"background: #f5f5f5;\">\n      <th style=\"padding: 8px; text-align: left;\">Category</th>\n      <th style=\"padding: 8px; text-align: left;\">Distribution</th>\n      <th style=\"padding: 8px; text-align: right;\">Amount</th>\n      <th style=\"padding: 8px; text-align: right;\">%</th>\n    </tr>\n    ${catRows || '<tr><td colspan=\"4\" style=\"padding: 8px; text-align: center;\">No expenses this month</td></tr>'}\n  </table>\n</div>\n\n<p style=\"color: #999; font-size: 12px; text-align: center;\">Sent automatically by your Smart Expense Tracker</p>\n</body></html>`;\n\nlet monthCatText = '';\nObject.entries(categoryTotals)\n  .sort((a, b) => b[1] - a[1])\n  .forEach(([cat, amt]) => {\n    const pct = monthTotal > 0 ? Math.round((amt / monthTotal) * 100) : 0;\n    monthCatText += `  • ${cat}: ${amt.toFixed(0)} ${currency} (${pct}%)\\n`;\n  });\n\nconst topExp = monthExpenses.sort((a, b) => \n  parseFloat(b.json.amount) - parseFloat(a.json.amount))[0];\n\nconst telegramText = `📊 *Monthly Expense Report*\n📅 ${targetMonth}\n\n💸 Total spent: ${monthTotal.toFixed(0)} ${currency}\n🧾 Transactions: ${monthExpenses.length}\n📊 Avg per transaction: ${monthExpenses.length > 0 ? (monthTotal / monthExpenses.length).toFixed(0) : 0} ${currency}\n\n${topExp ? `💥 *Biggest expense:*\\n  ${topExp.json.description} — ${topExp.json.amount} ${currency}\\n` : ''}\n📂 *By Category:*\n${monthCatText || '  No expenses this month!'}\n${budgetAmount > 0 ? `📈 *Budget Performance:*\n💰 Budget: ${budgetAmount.toLocaleString()} ${currency}\n💸 Spent: ${monthTotal.toFixed(0)} ${currency}\n${remaining >= 0 ? `✅ Saved: ${remaining.toFixed(0)} ${currency}` : `🔴 Overspent: ${Math.abs(remaining).toFixed(0)} ${currency}`}\n📊 Used: ${percentage}%` : '📈 No budget set for this month'}`;\n\nreturn [{ json: { subject, body, telegramText } }];\n\nreturn [{ json: { subject, body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        1680
+      ],
+      "id": "a337ac2e-d70b-43dd-acf1-80e2132411be",
+      "name": "Code node for monthly report"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.telegramText }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        1488
+      ],
+      "id": "6cce0cc4-fe33-48ae-b9e6-3eb330bd0237",
+      "name": "Weekly Report Message",
+      "webhookId": "b12ac272-5fee-4527-a80e-625995f73b38",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.telegramText }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        1680
+      ],
+      "id": "647d7ba1-ce7e-49c6-bde7-ae984260d7f2",
+      "name": "Monthly Report Message",
+      "webhookId": "b12ac272-5fee-4527-a80e-625995f73b38",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const expenseRows = $('Get expenses3').all();\nconst budgetRows = $('Get Budget3').all();\n\nconst now = new Date();\nconst today = now.toISOString().split('T')[0];\nconst currentMonth = today.substring(0, 7);\n\nconst todayExpenses = expenseRows.filter(r => \n  r.json.date && r.json.date.startsWith(today)\n);\n\nconst monthExpenses = expenseRows.filter(r => \n  r.json.date && r.json.date.startsWith(currentMonth)\n);\n\nconst budget = budgetRows\n  .filter(r => r.json.date && r.json.date.startsWith(currentMonth))\n  .pop();\n\nconst todayTotal = todayExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nconst monthTotal = monthExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nconst currency = budget ? budget.json.currency : 'BDT';\nconst budgetAmount = budget ? parseFloat(budget.json.amount) : 0;\nconst remaining = budgetAmount - monthTotal;\nconst percentage = budgetAmount > 0 ? \n  Math.round((monthTotal / budgetAmount) * 100) : 0;\n\nconst categoryTotals = {};\ntodayExpenses.forEach(r => {\n  const cat = r.json.category || 'Other';\n  categoryTotals[cat] = (categoryTotals[cat] || 0) + \n    parseFloat(r.json.amount || 0);\n});\n\nlet todayBreakdown = '';\nif (Object.keys(categoryTotals).length === 0) {\n  todayBreakdown = '  No expenses today! 🎉';\n} else {\n  Object.entries(categoryTotals)\n    .sort((a, b) => b[1] - a[1])\n    .forEach(([cat, amt]) => {\n      todayBreakdown += `  • ${cat}: ${amt.toFixed(0)} ${currency}\\n`;\n    });\n}\n\nlet todayList = '';\ntodayExpenses.forEach((r, i) => {\n  todayList += `${i+1}. ${r.json.description} — ${r.json.amount} ${currency}\\n`;\n});\n\nconst subject = `Daily Expense Report — ${today}`;\n\nconst body = `\n<html><body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n\n<h2 style=\"color: #1D9E75;\">📊 Daily Expense Report</h2>\n<p style=\"color: #666;\">${today}</p>\n\n<div style=\"background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Today's Summary</h3>\n  <p><strong>Total spent today:</strong> ${todayTotal.toFixed(0)} ${currency}</p>\n  <p><strong>Number of expenses:</strong> ${todayExpenses.length}</p>\n</div>\n\n<div style=\"background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Today's Expenses</h3>\n  <pre style=\"font-family: monospace; color: #333;\">${todayList || 'No expenses today!'}</pre>\n</div>\n\n<div style=\"background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Monthly Overview</h3>\n  <p><strong>Month:</strong> ${currentMonth}</p>\n  <p><strong>Total spent:</strong> ${monthTotal.toFixed(0)} ${currency}</p>\n  ${budgetAmount > 0 ? `\n  <p><strong>Budget:</strong> ${budgetAmount.toLocaleString()} ${currency}</p>\n  <p><strong>Remaining:</strong> ${remaining.toFixed(0)} ${currency}</p>\n  <p><strong>Used:</strong> ${percentage}%</p>\n  <div style=\"background: #ddd; height: 10px; border-radius: 5px;\">\n    <div style=\"background: ${percentage >= 100 ? '#E24B4A' : percentage >= 80 ? '#EF9F27' : '#1D9E75'}; width: ${Math.min(100, percentage)}%; height: 10px; border-radius: 5px;\"></div>\n  </div>\n  ` : '<p><em>No budget set for this month</em></p>'}\n</div>\n\n<div style=\"background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Today by Category</h3>\n  <pre style=\"font-family: monospace; color: #333;\">${todayBreakdown}</pre>\n</div>\n\n<p style=\"color: #999; font-size: 12px;\">Sent automatically by your Smart Expense Tracker</p>\n</body></html>\n`;\n\nconst telegramText = `📊 *Daily Expense Report*\n📅 ${today}\n\n💸 Spent today: ${todayTotal.toFixed(0)} ${currency}\n🧾 Transactions: ${todayExpenses.length}\n\n📂 *By Category:*\n${todayBreakdown}\n📈 *Monthly Progress:*\n💰 Budget: ${budgetAmount > 0 ? budgetAmount.toLocaleString() : 'Not set'} ${currency}\n💸 Spent: ${monthTotal.toFixed(0)} ${currency}\n✅ Remaining: ${budgetAmount > 0 ? remaining.toFixed(0) : 'N/A'} ${currency}\n📊 Used: ${percentage}%`;\n\nreturn [{ json: { subject, body, telegramText } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        1296
+      ],
+      "id": "b5023f4a-14d7-4c22-a92c-6cf1916c844f",
+      "name": "Code node for daily report"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.telegramText }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        1296
+      ],
+      "id": "ea0652bc-6a87-49aa-a10e-adb34c2b7799",
+      "name": "Daily Report Message",
+      "webhookId": "b12ac272-5fee-4527-a80e-625995f73b38",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        1296
+      ],
+      "id": "421ef06b-2e19-4587-9dee-9f92f50aba57",
+      "name": "Get expenses3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Budget",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        1296
+      ],
+      "id": "7a654e4d-1831-4be7-9ff7-32a4fdd5b886",
+      "name": "Get Budget3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=🤖 *Smart Expense Tracker*\n_Your AI-powered personal finance assistant_\n\n━━━━━━━━━━━━━━━━━━━━\n💸 *ADD EXPENSES*\n━━━━━━━━━━━━━━━━━━━━\nSend expenses naturally:\n\n• `Lunch 450 BDT`\n• `Uber ride 250 taka today`\n• `Netflix $15 yesterday`\n• `Medicine 560 BDT 2026-04-10`\n\n━━━━━━━━━━━━━━━━━━━━\n📋 *MANAGE EXPENSES*\n━━━━━━━━━━━━━━━━━━━━\n\n• `list` → Show last 10 expenses\n• `delete 3` → Delete expense #3\n\n━━━━━━━━━━━━━━━━━━━━\n📂 *CATEGORY REPORTS*\n━━━━━━━━━━━━━━━━━━━━\n\n• `category food`\n• `category transport`\n• `category shopping`\n• `category bills`\n• `category health`\n• `category entertainment`\n• `category travel`\n• `category education`\n• `category groceries`\n• `category other`\n\n━━━━━━━━━━━━━━━━━━━━\n📊 *REPORTS*\n━━━━━━━━━━━━━━━━━━━━\n\n• `daily report` → Today's summary\n• `weekly report` → Last 7 days report\n• `monthly report` → Monthly analysis\n\n━━━━━━━━━━━━━━━━━━━━\n💰 *BUDGET MANAGEMENT*\n━━━━━━━━━━━━━━━━━━━━\n\n• `setbudget 5000 BDT` → Set monthly budget\n• `budget` → View budget status\n\n━━━━━━━━━━━━━━━━━━━━\n🎯 *SAVINGS GOALS*\n━━━━━━━━━━━━━━━━━━━━\n\n• `setgoal 50000 BDT Laptop` → Create goal\n• `savegoal 1000` → Add savings to latest goal\n• `goal` → View all goals\n\n━━━━━━━━━━━━━━━━━━━━\n🤖 *SMART AI QUERIES*\n━━━━━━━━━━━━━━━━━━━━\nAsk naturally:\n\n• `how much on food this week?`\n• `what was my biggest expense?`\n• `how much did I spend yesterday?`\n• `am I overspending on transport?`\n\n━━━━━━━━━━━━━━━━━━━━\n⚡ *SUPPORTED CURRENCIES*\n━━━━━━━━━━━━━━━━━━━━\nBDT • USD • EUR • GBP • INR • CAD • AUD\n\n━━━━━━━━━━━━━━━━━━━━\n🛠 *HELP*\n━━━━━━━━━━━━━━━━━━━━\n• `help` → Show this menu\n\n━━━━━━━━━━━━━━━━━━━━\n🚀 Powered by *n8n + Ollama AI*",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        144,
+        1872
+      ],
+      "id": "e4038db7-1e91-4408-9a61-222d2138571a",
+      "name": "Available commands",
+      "webhookId": "b12ac272-5fee-4527-a80e-625995f73b38",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $('Telegram Trigger').item.json.message.text.trim();\nconst parts = text.split(' ');\n\nif (parts.length < 2) {\n  return [{ json: {\n    error: true,\n    text: `❌ Please specify a category!\\n\\nUsage: category food\\n\\nAvailable categories:\\n• Food\\n• Transport\\n• Shopping\\n• Bills\\n• Entertainment\\n• Health\\n• Travel\\n• Education\\n• Groceries\\n• Other`\n  }}];\n}\n\nconst searchCategory = parts.slice(1).join(' ').toLowerCase();\n\nreturn [{ json: {\n  error: false,\n  searchCategory\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        3312
+      ],
+      "id": "9018bd2e-801a-464f-ae94-6f44c605a5e9",
+      "name": "Code for Expense By Category"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "52a45d27-c632-4bf3-a14a-78b045f6de38",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        432,
+        3312
+      ],
+      "id": "05c64a73-76c9-4203-b263-81e80e936b62",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        3408
+      ],
+      "id": "6ac3cf8b-6216-4b61-933d-50e1ff7253ef",
+      "name": "Telegram error message for Category",
+      "webhookId": "ac7844b2-0964-4043-9aab-b0ee44a65695",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        3216
+      ],
+      "id": "6405f567-fdde-4b88-bd4a-8817e8d55b4c",
+      "name": "Get expenses4",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $('Get expenses4').all();\nconst searchCategory = $('Code for Expense By Category').item.json.searchCategory;\n\nconst filtered = rows.filter(r => \n  r.json.category && \n  r.json.category.toLowerCase().includes(searchCategory)\n);\n\nif (filtered.length === 0) {\n  return [{ json: {\n    text: `❌ No expenses found for category: *${searchCategory}*\\n\\nTry: category food`\n  }}];\n}\n\nconst total = filtered.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nconst currency = filtered[0].json.currency || 'BDT';\n\nconst now = new Date();\nconst currentMonth = now.getFullYear() + '-' + \n  String(now.getMonth() + 1).padStart(2, '0');\n\nconst monthFiltered = filtered.filter(r => \n  r.json.date && r.json.date.startsWith(currentMonth)\n);\n\nconst monthTotal = monthFiltered.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nlet expenseList = '';\nfiltered\n  .sort((a, b) => new Date(b.json.date) - new Date(a.json.date))\n  .slice(0, 10)\n  .forEach((r, i) => {\n    expenseList += `${i + 1}. ${r.json.date} — ${r.json.description}\\n    💰 ${r.json.amount} ${r.json.currency}\\n\\n`;\n  });\n\nconst categoryName = filtered[0].json.category;\n\nconst text = `📂 *Category: ${categoryName}*\n\n📊 *Summary:*\n  • Total expenses: ${filtered.length}\n  • All time total: ${total.toFixed(0)} ${currency}\n  • This month: ${monthTotal.toFixed(0)} ${currency}\n  • This month count: ${monthFiltered.length}\n\n🕐 *Last 10 expenses:*\n\n${expenseList}`;\n\nreturn [{ json: { text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        3216
+      ],
+      "id": "d8ca56fd-76e8-4db2-80f9-b9a8f74dce9a",
+      "name": "Code for Expense By Category 1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1232,
+        3216
+      ],
+      "id": "5e320f1a-4b03-44d7-b6a1-67323e2d5f85",
+      "name": "Telegram message for Category",
+      "webhookId": "ac7844b2-0964-4043-9aab-b0ee44a65695",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Goals",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "goal_name": "={{ $json.goal_name }}",
+            "target_amount": "={{ $json.target_amount }}",
+            "saved_amount": "={{ $json.saved_amount }}",
+            "currency": "={{ $json.currency }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "goal_name",
+              "displayName": "goal_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "target_amount",
+              "displayName": "target_amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "saved_amount",
+              "displayName": "saved_amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        1968
+      ],
+      "id": "a786646b-0f6f-43b3-aa64-ff721d971b63",
+      "name": "Set Goals",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $('Telegram Trigger').item.json.message.text.trim();\nconst parts = text.split(' ');\n\nif (parts.length < 3) {\n  return [{ json: {\n    error: true,\n    text: \"❌ Invalid format!\\n\\nUsage: setgoal 50000 BDT Laptop\\n\\nExample:\\nsetgoal 50000 BDT Laptop\\nsetgoal 200000 BDT Car\"\n  }}];\n}\n\nconst targetAmount = parseFloat(parts[1]);\nconst currency = parts[2].toUpperCase();\nconst goalName = parts.slice(3).join(' ') || 'My Goal';\nconst date = new Date().toISOString().split('T')[0];\n\nif (isNaN(targetAmount)) {\n  return [{ json: {\n    error: true,\n    text: \"❌ Invalid amount! Use: setgoal 50000 BDT Laptop\"\n  }}];\n}\n\nreturn [{ json: {\n  error: false,\n  date,\n  goal_name: goalName,\n  target_amount: targetAmount,\n  saved_amount: 0,\n  currency\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        2064
+      ],
+      "id": "bcc118d5-8dcf-46db-a3b0-444c1e6e3c1b",
+      "name": "Code in for Set Goal"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.text || `✅ *Goal Created!*\n\n🎯 Goal: ${$json.goal_name}\n💰 Target: ${$json.target_amount} ${$json.currency}\n💸 Saved: ${$json.saved_amount || 0} ${$json.currency}\n📅 Date: ${$json.date}\n\nUse savegoal 1000 to add savings.` }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        2064
+      ],
+      "id": "2f12eeb3-82bc-443c-abb7-e899eeaa702a",
+      "name": "Goal confirmation",
+      "webhookId": "5738411d-5945-452f-b844-66e3f440e299",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Goals",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        704,
+        2896
+      ],
+      "id": "e762d2fd-6d72-49ab-8213-9759a9d7db8e",
+      "name": "Get Goals",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const goals = $input.all();\nconst saveData = $('Code for Save Goal').item.json;\n\nif (!goals.length || !goals[0].json || Object.keys(goals[0].json).length === 0) {\n  return [{\n    json: {\n      text: \"❌ No goal found.\\n\\nCreate one first:\\nsetgoal 50000 BDT Laptop\",\n      error: true\n    }\n  }];\n}\n\nconst goalRow = goals[goals.length - 1].json;\n\nconst goalName = goalRow.goal_name || \"Savings Goal\";\nconst targetAmount = Number(goalRow.target_amount || 0);\nconst currency = goalRow.currency || \"BDT\";\nconst oldSaved = Number(goalRow.saved_amount || 0);\nconst added = Number(saveData.amount || 0);\n\nconst newSaved = oldSaved + added;\n\nconst percentage = targetAmount > 0\n  ? Math.min(100, Math.round((newSaved / targetAmount) * 100))\n  : 0;\n\nconst remaining = Math.max(0, targetAmount - newSaved);\n\nconst text = `✅ *Savings Updated!*\n\n🎯 Goal: ${goalName}\n➕ Added: ${added} ${currency}\n💰 Total Saved: ${newSaved} ${currency}\n🏁 Target: ${targetAmount} ${currency}\n📊 Progress: ${percentage}%\n📉 Remaining: ${remaining} ${currency}\n\n${newSaved >= targetAmount\n  ? \"🎉 Congratulations! Goal completed!\"\n  : \"Keep going! 🚀\"}`;\n\nreturn [{\n  json: {\n    date: goalRow.date || new Date().toISOString().split(\"T\")[0],\n    goal_name: goalName,\n    target_amount: targetAmount,\n    saved_amount: newSaved,\n    currency,\n    text\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        2928
+      ],
+      "id": "a489145e-6974-4e05-ad50-c7972c3af9e2",
+      "name": "Code for Save Goal 1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $('Telegram Trigger').item.json.message.text.trim();\nconst parts = text.split(/\\s+/);\n\nconst amount = Number(parts[1]);\n\nif (!amount || amount <= 0) {\n  return [{\n    json: {\n      error: true,\n      text: \"❌ Invalid format!\\n\\nUse: savegoal 1000\"\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    error: false,\n    amount\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        3008
+      ],
+      "id": "e0a2f7ab-eaa0-4245-8cda-713838ceca91",
+      "name": "Code for Save Goal"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Goals",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "goal_name": "={{ $json.goal_name }}",
+            "target_amount": "={{ $json.target_amount }}",
+            "saved_amount": "={{ $json.saved_amount }}",
+            "currency": "={{ $json.currency }}"
+          },
+          "matchingColumns": [
+            "goal_name"
+          ],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "goal_name",
+              "displayName": "goal_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "target_amount",
+              "displayName": "target_amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "saved_amount",
+              "displayName": "saved_amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1232,
+        2928
+      ],
+      "id": "dba9e4f6-d449-42ba-bdeb-4b9c644639fc",
+      "name": "New Saved Amount",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $('Code for Save Goal 1').item.json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1456,
+        3008
+      ],
+      "id": "d1919ecd-6773-4d7a-a232-0c8057c54121",
+      "name": "Saving message",
+      "webhookId": "3c430bac-e603-4b1c-a9bc-a9169f1c5123",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Goals",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        2256
+      ],
+      "id": "383a55b8-afd3-4a3d-811d-54d6a9f38ac8",
+      "name": "Get Goals1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FIsnFmlr3YFURFyj",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $('Get Goals1').all();\n\nif (rows.length === 0) {\n  return [{ json: {\n    text: \"❌ No goals found!\\n\\nCreate one: setgoal 50000 BDT Laptop\"\n  }}];\n}\n\nlet message = \"🎯 *Your Savings Goals*\\n\\n\";\n\nrows.forEach((r, i) => {\n  const goal = r.json;\n  const saved = parseFloat(goal.saved_amount || 0);\n  const target = parseFloat(goal.target_amount);\n  const percentage = Math.min(100, Math.round((saved / target) * 100));\n  const remaining = target - saved;\n  const filled = Math.min(20, Math.max(0, Math.round(percentage / 5)));\n  const bar = '█'.repeat(filled) + '░'.repeat(20 - filled);\n\n  const daysElapsed = Math.max(1, Math.round(\n    (new Date() - new Date(goal.date)) / (1000 * 60 * 60 * 24)\n  ));\n  const dailyRate = saved / daysElapsed;\n  const daysToComplete = dailyRate > 0 && remaining > 0 ? \n    Math.round(remaining / dailyRate) : null;\n  const completionDate = daysToComplete ? \n    new Date(Date.now() + daysToComplete * 86400000)\n      .toISOString().split('T')[0] : \n    percentage >= 100 ? '✅ Completed!' : 'Keep saving!';\n\n  message += `*${i + 1}. ${goal.goal_name}*\\n`;\n  message += `💰 ${saved.toFixed(0)} / ${target.toLocaleString()} ${goal.currency}\\n`;\n  message += `\\`${bar}\\` ${percentage}%\\n`;\n  message += `⏳ Remaining: ${remaining > 0 ? remaining.toFixed(0) + ' ' + goal.currency : 'Done!'}\\n`;\n  message += `📅 Est. completion: ${completionDate}\\n\\n`;\n});\n\nreturn [{ json: { text: message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        2256
+      ],
+      "id": "76632210-e486-457e-92e9-78faed303131",
+      "name": "Code  for goal status"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "llama3.1:8b",
+          "mode": "list",
+          "cachedResultName": "llama3.1:8b"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "==You are a financial assistant.\n\nUser question:\n{{ $('Telegram Trigger').item.json.message.text }}\n\nExpense data:\n{{ JSON.stringify($('Get expenses for NLQ').all().map(i => i.json)) }}\n\nBudget data:\n{{ JSON.stringify($('Get budget for NLQ').all().map(i => i.json)) }}\n\nAnswer briefly and clearly."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        656,
+        2736
+      ],
+      "id": "be2392da-c197-4010-8bb7-db83e5ffb281",
+      "name": "Message a model for Natural Language Queries",
+      "executeOnce": true,
+      "credentials": {
+        "ollamaApi": {
+          "id": "YpBji9sJVIaoaxX9",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                5
+              ],
+              "triggerAtHour": 22
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        128,
+        -64
+      ],
+      "id": "bd90499e-fa62-4e12-a213-6d2f1348649b",
+      "name": "Weekly Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 22
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        128,
+        -288
+      ],
+      "id": "f2fe21ef-db46-4b9c-b194-8ee35c149a2e",
+      "name": "Daily Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "triggerAtHour": 22
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        128,
+        -512
+      ],
+      "id": "897790d6-d563-4236-9775-464634948c98",
+      "name": "Monthly Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "sendTo": "irfansaiev740@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        -64
+      ],
+      "id": "f200a053-82a5-41c2-93ca-b901ad1dbc77",
+      "name": "Send a message weekly",
+      "webhookId": "7ec7ebcf-66c3-4ce5-99c8-a014a8580e3b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "JyPXCJnVGjJqGbAu",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "irfansaiev740@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        -288
+      ],
+      "id": "0a109925-47d2-4f06-91ac-47eda65cfb1f",
+      "name": "Send a message daily",
+      "webhookId": "7ec7ebcf-66c3-4ce5-99c8-a014a8580e3b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "JyPXCJnVGjJqGbAu",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "irfansaiev740@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        -512
+      ],
+      "id": "a7a952bb-2887-49c9-9b8d-85d36a9d8f98",
+      "name": "Send a message monthly",
+      "webhookId": "7ec7ebcf-66c3-4ce5-99c8-a014a8580e3b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "JyPXCJnVGjJqGbAu",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        352,
+        -288
+      ],
+      "id": "bc4efc08-2782-4c22-b743-34871d5bbf5f",
+      "name": "Get expenses5",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Budget",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        576,
+        -288
+      ],
+      "id": "78992bfb-af04-4b30-aff4-45419efda544",
+      "name": "Get Budget4",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const expenseRows = $('Get expenses5').all();\nconst budgetRows = $('Get Budget4').all();\n\nconst now = new Date();\nconst today = now.toISOString().split('T')[0];\nconst currentMonth = today.substring(0, 7);\n\nconst todayExpenses = expenseRows.filter(r => \n  r.json.date && r.json.date.startsWith(today)\n);\n\nconst monthExpenses = expenseRows.filter(r => \n  r.json.date && r.json.date.startsWith(currentMonth)\n);\n\nconst budget = budgetRows\n  .filter(r => r.json.date && r.json.date.startsWith(currentMonth))\n  .pop();\n\nconst todayTotal = todayExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nconst monthTotal = monthExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nconst currency = budget ? budget.json.currency : 'BDT';\nconst budgetAmount = budget ? parseFloat(budget.json.amount) : 0;\nconst remaining = budgetAmount - monthTotal;\nconst percentage = budgetAmount > 0 ? \n  Math.round((monthTotal / budgetAmount) * 100) : 0;\n\nconst categoryTotals = {};\ntodayExpenses.forEach(r => {\n  const cat = r.json.category || 'Other';\n  categoryTotals[cat] = (categoryTotals[cat] || 0) + \n    parseFloat(r.json.amount || 0);\n});\n\nlet todayBreakdown = '';\nif (Object.keys(categoryTotals).length === 0) {\n  todayBreakdown = '  No expenses today! 🎉';\n} else {\n  Object.entries(categoryTotals)\n    .sort((a, b) => b[1] - a[1])\n    .forEach(([cat, amt]) => {\n      todayBreakdown += `  • ${cat}: ${amt.toFixed(0)} ${currency}\\n`;\n    });\n}\n\nlet todayList = '';\ntodayExpenses.forEach((r, i) => {\n  todayList += `${i+1}. ${r.json.description} — ${r.json.amount} ${currency}\\n`;\n});\n\nconst subject = `Daily Expense Report — ${today}`;\n\nconst body = `\n<html><body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n\n<h2 style=\"color: #1D9E75;\">📊 Daily Expense Report</h2>\n<p style=\"color: #666;\">${today}</p>\n\n<div style=\"background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Today's Summary</h3>\n  <p><strong>Total spent today:</strong> ${todayTotal.toFixed(0)} ${currency}</p>\n  <p><strong>Number of expenses:</strong> ${todayExpenses.length}</p>\n</div>\n\n<div style=\"background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Today's Expenses</h3>\n  <pre style=\"font-family: monospace; color: #333;\">${todayList || 'No expenses today!'}</pre>\n</div>\n\n<div style=\"background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Monthly Overview</h3>\n  <p><strong>Month:</strong> ${currentMonth}</p>\n  <p><strong>Total spent:</strong> ${monthTotal.toFixed(0)} ${currency}</p>\n  ${budgetAmount > 0 ? `\n  <p><strong>Budget:</strong> ${budgetAmount.toLocaleString()} ${currency}</p>\n  <p><strong>Remaining:</strong> ${remaining.toFixed(0)} ${currency}</p>\n  <p><strong>Used:</strong> ${percentage}%</p>\n  <div style=\"background: #ddd; height: 10px; border-radius: 5px;\">\n    <div style=\"background: ${percentage >= 100 ? '#E24B4A' : percentage >= 80 ? '#EF9F27' : '#1D9E75'}; width: ${Math.min(100, percentage)}%; height: 10px; border-radius: 5px;\"></div>\n  </div>\n  ` : '<p><em>No budget set for this month</em></p>'}\n</div>\n\n<div style=\"background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Today by Category</h3>\n  <pre style=\"font-family: monospace; color: #333;\">${todayBreakdown}</pre>\n</div>\n\n<p style=\"color: #999; font-size: 12px;\">Sent automatically by your Smart Expense Tracker</p>\n</body></html>\n`;\n\nconst telegramText = `📊 *Daily Expense Report*\n📅 ${today}\n\n💸 Spent today: ${todayTotal.toFixed(0)} ${currency}\n🧾 Transactions: ${todayExpenses.length}\n\n📂 *By Category:*\n${todayBreakdown}\n📈 *Monthly Progress:*\n💰 Budget: ${budgetAmount > 0 ? budgetAmount.toLocaleString() : 'Not set'} ${currency}\n💸 Spent: ${monthTotal.toFixed(0)} ${currency}\n✅ Remaining: ${budgetAmount > 0 ? remaining.toFixed(0) : 'N/A'} ${currency}\n📊 Used: ${percentage}%`;\n\nreturn [{ json: { subject, body, telegramText } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -288
+      ],
+      "id": "6c10296e-b0a5-4345-89c7-bbd81314819e",
+      "name": "Code node for daily report1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        352,
+        -64
+      ],
+      "id": "2b635998-fc8f-4a1c-8d84-2151f00442f9",
+      "name": "Get expenses6",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Budget",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        576,
+        -64
+      ],
+      "id": "6e7b5a8c-4ee4-4ed5-a178-83aaf2842a1c",
+      "name": "Get Budget5",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        352,
+        -512
+      ],
+      "id": "6a27520a-1e4b-4501-8853-abfb6240bdf2",
+      "name": "Get expenses7",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Budget",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        576,
+        -512
+      ],
+      "id": "f0727894-0991-475f-976a-69aa38a3f44f",
+      "name": "Get Budget6",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const expenseRows = $('Get expenses6').all();\nconst budgetRows = $('Get Budget5').all();\n\nconst now = new Date();\nconst currentMonth = now.getFullYear() + '-' + \n  String(now.getMonth() + 1).padStart(2, '0');\n\nconst oneWeekAgo = new Date(now);\noneWeekAgo.setDate(now.getDate() - 7);\n\nconst weekExpenses = expenseRows.filter(r => {\n  if (!r.json.date) return false;\n  const expDate = new Date(r.json.date);\n  return expDate >= oneWeekAgo && expDate <= now;\n});\n\nconst budget = budgetRows\n  .filter(r => r.json.date && r.json.date.startsWith(currentMonth))\n  .pop();\n\nconst weekTotal = weekExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nconst currency = budget ? budget.json.currency : 'BDT';\nconst budgetAmount = budget ? parseFloat(budget.json.amount) : 0;\n\nconst monthExpenses = expenseRows.filter(r => \n  r.json.date && r.json.date.startsWith(currentMonth)\n);\nconst monthTotal = monthExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\nconst remaining = budgetAmount - monthTotal;\nconst percentage = budgetAmount > 0 ? \n  Math.round((monthTotal / budgetAmount) * 100) : 0;\n\nconst categoryTotals = {};\nweekExpenses.forEach(r => {\n  const cat = r.json.category || 'Other';\n  categoryTotals[cat] = (categoryTotals[cat] || 0) + \n    parseFloat(r.json.amount || 0);\n});\n\nlet catRows = '';\nObject.entries(categoryTotals)\n  .sort((a, b) => b[1] - a[1])\n  .forEach(([cat, amt]) => {\n    const pct = weekTotal > 0 ? Math.round((amt / weekTotal) * 100) : 0;\n    catRows += `\n    <tr>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee;\">${cat}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; text-align: right;\">${amt.toFixed(0)} ${currency}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; text-align: right;\">${pct}%</td>\n    </tr>`;\n  });\n\nlet expenseRows2 = '';\nweekExpenses\n  .sort((a, b) => new Date(b.json.date) - new Date(a.json.date))\n  .forEach(r => {\n    expenseRows2 += `\n    <tr>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee;\">${r.json.date}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee;\">${r.json.description}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee;\">${r.json.category}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; text-align: right;\">${r.json.amount} ${currency}</td>\n    </tr>`;\n  });\n\nconst fromDate = oneWeekAgo.toISOString().split('T')[0];\nconst toDate = now.toISOString().split('T')[0];\nconst subject = `Weekly Expense Report — ${fromDate} to ${toDate}`;\n\nconst body = `\n<html><body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n\n<h2 style=\"color: #1D9E75;\">📊 Weekly Expense Report</h2>\n<p style=\"color: #666;\">${fromDate} to ${toDate}</p>\n\n<div style=\"display: flex; gap: 10px; margin: 15px 0;\">\n  <div style=\"flex: 1; background: #E1F5EE; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #1D9E75;\">${weekTotal.toFixed(0)}</div>\n    <div style=\"color: #666; font-size: 12px;\">Total Spent (${currency})</div>\n  </div>\n  <div style=\"flex: 1; background: #E6F1FB; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #185FA5;\">${weekExpenses.length}</div>\n    <div style=\"color: #666; font-size: 12px;\">Transactions</div>\n  </div>\n  <div style=\"flex: 1; background: #FAEEDA; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #BA7517;\">${weekExpenses.length > 0 ? (weekTotal / weekExpenses.length).toFixed(0) : 0}</div>\n    <div style=\"color: #666; font-size: 12px;\">Avg per Transaction</div>\n  </div>\n</div>\n\n${budgetAmount > 0 ? `\n<div style=\"background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Monthly Budget Status</h3>\n  <p><strong>Budget:</strong> ${budgetAmount.toLocaleString()} ${currency}</p>\n  <p><strong>Spent this month:</strong> ${monthTotal.toFixed(0)} ${currency}</p>\n  <p><strong>Remaining:</strong> ${remaining.toFixed(0)} ${currency}</p>\n  <div style=\"background: #ddd; height: 12px; border-radius: 6px; margin-top: 8px;\">\n    <div style=\"background: ${percentage >= 100 ? '#E24B4A' : percentage >= 80 ? '#EF9F27' : '#1D9E75'}; width: ${Math.min(100, percentage)}%; height: 12px; border-radius: 6px;\"></div>\n  </div>\n  <p style=\"text-align: right; color: #666; font-size: 12px;\">${percentage}% used</p>\n</div>` : ''}\n\n<div style=\"background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Spending by Category</h3>\n  <table style=\"width: 100%; border-collapse: collapse;\">\n    <tr style=\"background: #f5f5f5;\">\n      <th style=\"padding: 8px; text-align: left;\">Category</th>\n      <th style=\"padding: 8px; text-align: right;\">Amount</th>\n      <th style=\"padding: 8px; text-align: right;\">%</th>\n    </tr>\n    ${catRows || '<tr><td colspan=\"3\" style=\"padding: 8px; text-align: center;\">No expenses this week</td></tr>'}\n  </table>\n</div>\n\n<div style=\"background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">All Transactions</h3>\n  <table style=\"width: 100%; border-collapse: collapse;\">\n    <tr style=\"background: #f5f5f5;\">\n      <th style=\"padding: 8px; text-align: left;\">Date</th>\n      <th style=\"padding: 8px; text-align: left;\">Description</th>\n      <th style=\"padding: 8px; text-align: left;\">Category</th>\n      <th style=\"padding: 8px; text-align: right;\">Amount</th>\n    </tr>\n    ${expenseRows2 || '<tr><td colspan=\"4\" style=\"padding: 8px; text-align: center;\">No expenses this week</td></tr>'}\n  </table>\n</div>\n\n<p style=\"color: #999; font-size: 12px; text-align: center;\">Sent automatically by your Smart Expense Tracker</p>\n</body></html>`;\n\nlet weekCatText = '';\nObject.entries(categoryTotals)\n  .sort((a, b) => b[1] - a[1])\n  .slice(0, 5)\n  .forEach(([cat, amt]) => {\n    const pct = weekTotal > 0 ? Math.round((amt / weekTotal) * 100) : 0;\n    weekCatText += `  • ${cat}: ${amt.toFixed(0)} ${currency} (${pct}%)\\n`;\n  });\n\nconst telegramText = `📊 *Weekly Expense Report*\n📅 ${fromDate} → ${toDate}\n\n💸 Total spent: ${weekTotal.toFixed(0)} ${currency}\n🧾 Transactions: ${weekExpenses.length}\n📊 Avg per day: ${(weekTotal / 7).toFixed(0)} ${currency}\n\n📂 *Top Categories:*\n${weekCatText || '  No expenses this week!'}\n📈 *Monthly Budget Status:*\n💰 Budget: ${budgetAmount > 0 ? budgetAmount.toLocaleString() : 'Not set'} ${currency}\n💸 Month spent: ${monthTotal.toFixed(0)} ${currency}\n✅ Remaining: ${budgetAmount > 0 ? remaining.toFixed(0) : 'N/A'} ${currency}\n📊 Used: ${percentage}%`;\n\nreturn [{ json: { subject, body, telegramText } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -64
+      ],
+      "id": "b5d4240a-4f85-4b79-ae1b-c16374ef7cf4",
+      "name": "Code node for weekly report1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const expenseRows = $('Get expenses7').all();\nconst budgetRows = $('Get Budget6').all();\n\nconst now = new Date();\nconst lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);\nconst targetMonth = lastMonth.getFullYear() + '-' + \n  String(lastMonth.getMonth() + 1).padStart(2, '0');\n\nconst monthExpenses = expenseRows.filter(r => \n  r.json.date && r.json.date.startsWith(targetMonth)\n);\n\nconst budget = budgetRows\n  .filter(r => r.json.date && r.json.date.startsWith(targetMonth))\n  .pop();\n\nconst monthTotal = monthExpenses.reduce((sum, r) => \n  sum + parseFloat(r.json.amount || 0), 0\n);\n\nconst currency = budget ? budget.json.currency : 'BDT';\nconst budgetAmount = budget ? parseFloat(budget.json.amount) : 0;\nconst remaining = budgetAmount - monthTotal;\nconst percentage = budgetAmount > 0 ? \n  Math.round((monthTotal / budgetAmount) * 100) : 0;\n\nconst categoryTotals = {};\nmonthExpenses.forEach(r => {\n  const cat = r.json.category || 'Other';\n  categoryTotals[cat] = (categoryTotals[cat] || 0) + \n    parseFloat(r.json.amount || 0);\n});\n\nlet catRows = '';\nObject.entries(categoryTotals)\n  .sort((a, b) => b[1] - a[1])\n  .forEach(([cat, amt]) => {\n    const pct = monthTotal > 0 ? Math.round((amt / monthTotal) * 100) : 0;\n    const barWidth = Math.round(pct * 1.5);\n    catRows += `\n    <tr>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; width: 120px;\">${cat}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee;\">\n        <div style=\"background: #1D9E75; height: 8px; width: ${barWidth}px; border-radius: 4px;\"></div>\n      </td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; text-align: right; width: 100px;\">${amt.toFixed(0)} ${currency}</td>\n      <td style=\"padding: 8px; border-bottom: 1px solid #eee; text-align: right; width: 50px;\">${pct}%</td>\n    </tr>`;\n  });\n\nconst topExpense = monthExpenses.sort((a, b) => \n  parseFloat(b.json.amount) - parseFloat(a.json.amount))[0];\n\nconst subject = `Monthly Expense Report — ${targetMonth}`;\n\nconst body = `\n<html><body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n\n<h2 style=\"color: #1D9E75;\">📊 Monthly Expense Report</h2>\n<p style=\"color: #666;\">${targetMonth}</p>\n\n<div style=\"display: flex; gap: 10px; margin: 15px 0;\">\n  <div style=\"flex: 1; background: #E1F5EE; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #1D9E75;\">${monthTotal.toFixed(0)}</div>\n    <div style=\"color: #666; font-size: 12px;\">Total Spent (${currency})</div>\n  </div>\n  <div style=\"flex: 1; background: #E6F1FB; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #185FA5;\">${monthExpenses.length}</div>\n    <div style=\"color: #666; font-size: 12px;\">Transactions</div>\n  </div>\n  <div style=\"flex: 1; background: #FAEEDA; padding: 15px; border-radius: 8px; text-align: center;\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #BA7517;\">${monthExpenses.length > 0 ? (monthTotal / monthExpenses.length).toFixed(0) : 0}</div>\n    <div style=\"color: #666; font-size: 12px;\">Avg per Transaction</div>\n  </div>\n</div>\n\n${topExpense ? `\n<div style=\"background: #FCEBEB; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 5px; color: #A32D2D;\">💸 Biggest Expense</h3>\n  <p style=\"margin: 0;\"><strong>${topExpense.json.description}</strong> — ${topExpense.json.amount} ${currency} (${topExpense.json.category})</p>\n</div>` : ''}\n\n${budgetAmount > 0 ? `\n<div style=\"background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Budget Performance</h3>\n  <p><strong>Budget:</strong> ${budgetAmount.toLocaleString()} ${currency}</p>\n  <p><strong>Spent:</strong> ${monthTotal.toFixed(0)} ${currency}</p>\n  <p><strong>${remaining >= 0 ? 'Saved' : 'Overspent'}:</strong> \n    <span style=\"color: ${remaining >= 0 ? '#1D9E75' : '#E24B4A'}\">\n      ${Math.abs(remaining).toFixed(0)} ${currency}\n    </span>\n  </p>\n  <div style=\"background: #ddd; height: 12px; border-radius: 6px; margin-top: 8px;\">\n    <div style=\"background: ${percentage >= 100 ? '#E24B4A' : percentage >= 80 ? '#EF9F27' : '#1D9E75'}; width: ${Math.min(100, percentage)}%; height: 12px; border-radius: 6px;\"></div>\n  </div>\n  <p style=\"text-align: right; color: #666; font-size: 12px;\">${percentage}% of budget used</p>\n</div>` : ''}\n\n<div style=\"background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin: 15px 0;\">\n  <h3 style=\"margin: 0 0 10px;\">Spending by Category</h3>\n  <table style=\"width: 100%; border-collapse: collapse;\">\n    <tr style=\"background: #f5f5f5;\">\n      <th style=\"padding: 8px; text-align: left;\">Category</th>\n      <th style=\"padding: 8px; text-align: left;\">Distribution</th>\n      <th style=\"padding: 8px; text-align: right;\">Amount</th>\n      <th style=\"padding: 8px; text-align: right;\">%</th>\n    </tr>\n    ${catRows || '<tr><td colspan=\"4\" style=\"padding: 8px; text-align: center;\">No expenses this month</td></tr>'}\n  </table>\n</div>\n\n<p style=\"color: #999; font-size: 12px; text-align: center;\">Sent automatically by your Smart Expense Tracker</p>\n</body></html>`;\n\nlet monthCatText = '';\nObject.entries(categoryTotals)\n  .sort((a, b) => b[1] - a[1])\n  .forEach(([cat, amt]) => {\n    const pct = monthTotal > 0 ? Math.round((amt / monthTotal) * 100) : 0;\n    monthCatText += `  • ${cat}: ${amt.toFixed(0)} ${currency} (${pct}%)\\n`;\n  });\n\nconst topExp = monthExpenses.sort((a, b) => \n  parseFloat(b.json.amount) - parseFloat(a.json.amount))[0];\n\nconst telegramText = `📊 *Monthly Expense Report*\n📅 ${targetMonth}\n\n💸 Total spent: ${monthTotal.toFixed(0)} ${currency}\n🧾 Transactions: ${monthExpenses.length}\n📊 Avg per transaction: ${monthExpenses.length > 0 ? (monthTotal / monthExpenses.length).toFixed(0) : 0} ${currency}\n\n${topExp ? `💥 *Biggest expense:*\\n  ${topExp.json.description} — ${topExp.json.amount} ${currency}\\n` : ''}\n📂 *By Category:*\n${monthCatText || '  No expenses this month!'}\n${budgetAmount > 0 ? `📈 *Budget Performance:*\n💰 Budget: ${budgetAmount.toLocaleString()} ${currency}\n💸 Spent: ${monthTotal.toFixed(0)} ${currency}\n${remaining >= 0 ? `✅ Saved: ${remaining.toFixed(0)} ${currency}` : `🔴 Overspent: ${Math.abs(remaining).toFixed(0)} ${currency}`}\n📊 Used: ${percentage}%` : '📈 No budget set for this month'}`;\n\nreturn [{ json: { subject, body, telegramText } }];\n\nreturn [{ json: { subject, body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -512
+      ],
+      "id": "ced38891-448d-46b6-95a5-ce77789000f4",
+      "name": "Code node for monthly report1"
+    },
+    {
+      "parameters": {
+        "chatId": "7461598117",
+        "text": "={{ $('Code node for daily report1').item.json.telegramText }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1248,
+        -288
+      ],
+      "id": "0398f4c8-eb95-45a8-818d-6b214fcd274f",
+      "name": "Daily Report Message1",
+      "webhookId": "b12ac272-5fee-4527-a80e-625995f73b38",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "7461598117",
+        "text": "={{ $('Code node for weekly report1').item.json.telegramText }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1248,
+        -64
+      ],
+      "id": "189d65fb-9a55-4596-af96-908ec88f120a",
+      "name": "Weekly Report Message1",
+      "webhookId": "b12ac272-5fee-4527-a80e-625995f73b38",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "7461598117",
+        "text": "={{ $('Code node for monthly report1').item.json.telegramText }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1248,
+        -512
+      ],
+      "id": "8872a643-8cad-490f-9ff2-9017dc88b564",
+      "name": "Monthly Report Message1",
+      "webhookId": "b12ac272-5fee-4527-a80e-625995f73b38",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1ad87947-da2e-4fcc-8f58-0892917db8b5",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        432,
+        2064
+      ],
+      "id": "0e532472-3b66-4fd9-b751-ce6b93567a48",
+      "name": "If for Set Goal"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "97f2cdb7-44dc-4a1a-85e9-058df3456238",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        432,
+        3008
+      ],
+      "id": "1ecef619-5dbc-4545-ad27-a54982ea2214",
+      "name": "If for Save Goal"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        2736
+      ],
+      "id": "ffd79e99-450d-4c9f-8241-1e241f8375a9",
+      "name": "Get expenses for NLQ",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CS5CXySnZQwXmupywd1p5XQwMV2SvWiJap2pSLCMwuo",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Budget",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        2736
+      ],
+      "id": "4fade492-d28b-4a32-9018-fae5fbb053f4",
+      "name": "Get budget for NLQ",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q3GBu5qAqgF6N6B9",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.content || $json.text || $json.response || $json.message?.content || \"Sorry, I could not generate an answer.\" }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        2736
+      ],
+      "id": "2cf60ea4-5963-4159-8224-955f0b7292b8",
+      "name": "Natural Language Query Response",
+      "webhookId": "0af292d5-b578-441e-b1e8-298fbb9f8f33",
+      "credentials": {
+        "telegramApi": {
+          "id": "OYJoNJVtULXmRjt2",
+          "name": "SmartExpenceTracker.BOT"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Saved message !",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If for Expense Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code for List (10 Expenses)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for List (10 Expenses)": {
+      "main": [
+        [
+          {
+            "node": "List of last 10 Expenses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for Delete": {
+      "main": [
+        [
+          {
+            "node": "If for Delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If for Delete": {
+      "main": [
+        [
+          {
+            "node": "Get row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete error message !",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If for Expense Entry": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error message !",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet": {
+      "main": [
+        [
+          {
+            "node": "Delete message !",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row": {
+      "main": [
+        [
+          {
+            "node": "Code for delete 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for delete 2": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code for Delete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code for Set Budget",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get expenses",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get expenses3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get expenses1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get expenses2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Available commands",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code for Expense By Category",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in for Set Goal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code for Save Goal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Goals1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get expenses for NLQ",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model for Expense",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for Set Budget": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Budget Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get expenses": {
+      "main": [
+        [
+          {
+            "node": "Get Budget",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Budget": {
+      "main": [
+        [
+          {
+            "node": "Code for Get Budget",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for Get Budget": {
+      "main": [
+        [
+          {
+            "node": "Budget message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Saved message !": {
+      "main": [
+        [
+          {
+            "node": "Get expenses for alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get expenses for alert": {
+      "main": [
+        [
+          {
+            "node": "Get budget for alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get budget for alert": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Alerts! message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model for Expense": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get expenses1": {
+      "main": [
+        [
+          {
+            "node": "Get Budget1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Budget1": {
+      "main": [
+        [
+          {
+            "node": "Code node for weekly report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get expenses2": {
+      "main": [
+        [
+          {
+            "node": "Get Budget2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Budget2": {
+      "main": [
+        [
+          {
+            "node": "Code node for monthly report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code node for weekly report": {
+      "main": [
+        [
+          {
+            "node": "Weekly Report Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code node for monthly report": {
+      "main": [
+        [
+          {
+            "node": "Monthly Report Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code node for daily report": {
+      "main": [
+        [
+          {
+            "node": "Daily Report Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get expenses3": {
+      "main": [
+        [
+          {
+            "node": "Get Budget3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Budget3": {
+      "main": [
+        [
+          {
+            "node": "Code node for daily report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for Expense By Category": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Get expenses4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram error message for Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get expenses4": {
+      "main": [
+        [
+          {
+            "node": "Code for Expense By Category 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for Expense By Category 1": {
+      "main": [
+        [
+          {
+            "node": "Telegram message for Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in for Set Goal": {
+      "main": [
+        [
+          {
+            "node": "If for Set Goal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Goals": {
+      "main": [
+        [
+          {
+            "node": "Goal confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Goals": {
+      "main": [
+        [
+          {
+            "node": "Code for Save Goal 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for Save Goal": {
+      "main": [
+        [
+          {
+            "node": "If for Save Goal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for Save Goal 1": {
+      "main": [
+        [
+          {
+            "node": "New Saved Amount",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Saved Amount": {
+      "main": [
+        [
+          {
+            "node": "Saving message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Goals1": {
+      "main": [
+        [
+          {
+            "node": "Code  for goal status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get expenses6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get expenses5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monthly Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get expenses7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message weekly": {
+      "main": [
+        [
+          {
+            "node": "Weekly Report Message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message daily": {
+      "main": [
+        [
+          {
+            "node": "Daily Report Message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message monthly": {
+      "main": [
+        [
+          {
+            "node": "Monthly Report Message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get expenses5": {
+      "main": [
+        [
+          {
+            "node": "Get Budget4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Budget4": {
+      "main": [
+        [
+          {
+            "node": "Code node for daily report1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code node for daily report1": {
+      "main": [
+        [
+          {
+            "node": "Send a message daily",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get expenses6": {
+      "main": [
+        [
+          {
+            "node": "Get Budget5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Budget5": {
+      "main": [
+        [
+          {
+            "node": "Code node for weekly report1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get expenses7": {
+      "main": [
+        [
+          {
+            "node": "Get Budget6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Budget6": {
+      "main": [
+        [
+          {
+            "node": "Code node for monthly report1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code node for weekly report1": {
+      "main": [
+        [
+          {
+            "node": "Send a message weekly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code node for monthly report1": {
+      "main": [
+        [
+          {
+            "node": "Send a message monthly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If for Set Goal": {
+      "main": [
+        [
+          {
+            "node": "Set Goals",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "If for Save Goal": {
+      "main": [
+        [
+          {
+            "node": "Get Goals",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Get expenses for NLQ": {
+      "main": [
+        [
+          {
+            "node": "Get budget for NLQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get budget for NLQ": {
+      "main": [
+        [
+          {
+            "node": "Message a model for Natural Language Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model for Natural Language Queries": {
+      "main": [
+        [
+          {
+            "node": "Natural Language Query Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code  for goal status": {
+      "main": [
+        [
+          {
+            "node": "Goal confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a1ebeb1c-9983-47bb-83ff-303c21f2abe8",
+  "meta": {
+    "instanceId": "d07f6a9f23925464d53eda460c6312545a9df017f0e0d932a9268d0f20e15ef1"
+  },
+  "id": "2vKkT4jXspcQaEHV",
+  "tags": []
+}
